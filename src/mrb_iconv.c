@@ -196,6 +196,39 @@ mrb_iconv_conv(mrb_state *mrb, mrb_value self)
   return r;
 }
 
+#ifdef HAVE_ICONVLIST
+struct iconv_list_data
+{
+  mrb_state *mrb;
+  mrb_value callback;
+};
+
+static int
+list_iconv(unsigned int namescount, const char *const *names, void *data)
+{
+  struct iconv_list_data *p = (struct iconv_list_data *)data;
+  int i;
+
+  for (i = 0; i< namescount; i++) {
+    mrb_yield(p->mrb, p->callback, mrb_str_new_cstr(p->mrb, names[i]));
+  }
+  return 0;
+}
+
+static mrb_value
+mrb_iconv_list(mrb_state *mrb, mrb_value self)
+{
+  mrb_value callback;
+  struct iconv_list_data data;
+
+  mrb_get_args(mrb, "&", &callback);
+  data.mrb = mrb;
+  data.callback = callback;
+  iconvlist(list_iconv, &data);
+  return mrb_true_value();
+}
+#endif /* HAVE_ICONVLIST */
+
 static mrb_value
 mrb_iconv_init(mrb_state *mrb, mrb_value self)
 {
@@ -342,6 +375,9 @@ mrb_mruby_iconv_gem_init(mrb_state* mrb) {
   struct RClass* _class_iconv = mrb_define_module(mrb, "Iconv");
   mrb_define_class_method(mrb, _class_iconv, "conv", mrb_iconv_conv, MRB_ARGS_REQ(3));
   mrb_define_class_method(mrb, _class_iconv, "open", mrb_iconv_open, MRB_ARGS_OPT(2));
+#ifdef HAVE_ICONVLIST
+  mrb_define_class_method(mrb, _class_iconv, "list", mrb_iconv_list, MRB_ARGS_REQ(1));
+#endif /* HAVE_ICONVLIST */
   mrb_define_method(mrb, _class_iconv, "initialize", mrb_iconv_init, MRB_ARGS_OPT(2));
   mrb_define_method(mrb, _class_iconv, "iconv", mrb_iconv_iconv, MRB_ARGS_REQ(1));
   mrb_define_method(mrb, _class_iconv, "close", mrb_iconv_close, MRB_ARGS_NONE());
